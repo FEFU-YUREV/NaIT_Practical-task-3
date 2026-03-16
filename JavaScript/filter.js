@@ -1,85 +1,122 @@
-// устанавливаем соответствие между полями формы и столбцами таблицы
 const correspond = {
-    "Название": "structure",
-    "Тип": "category",
-    "Страна": "country",
-    "Город": "city",
-    "Год": ["yearFrom", "yearTo"],
-    "Высота": ["heightFrom", "heightTo"]
-}
-/* Структура возвращаемого ассоциативного массива:
-{
-    input_id: input_value,
-    ...
-}
-*/
+    brand: "brand",
+    model: "model_input",
+    cpu: "CPU",
+    cores: ["kernel_min", "kernel_max"],
+    threads: ["threads_min", "threads_max"],
+    boost: ["boost_min", "boost_max"],
+    ram: ["RAM_min", "RAM_max"],
+    storage: ["storage_min", "storage_max"],
+    gpu: "GPU",
+    screen: "screen",
+    weight: ["weight_min", "weight_max"],
+    battery: ["battery_min", "battery_max"],
+    price: ["price_min", "price_max"],
+    score: ["performance", "performance_max"],
+    year: ["year_min", "year_max"]
+};
+
+const numericDefaults = {
+    kernel_min: -Infinity,
+    kernel_max: Infinity,
+    threads_min: -Infinity,
+    threads_max: Infinity,
+    boost_min: -Infinity,
+    boost_max: Infinity,
+    RAM_min: -Infinity,
+    RAM_max: Infinity,
+    storage_min: -Infinity,
+    storage_max: Infinity,
+    weight_min: -Infinity,
+    weight_max: Infinity,
+    battery_min: -Infinity,
+    battery_max: Infinity,
+    price_min: -Infinity,
+    price_max: Infinity,
+    performance: -Infinity,
+    performance_max: Infinity,
+    year_min: -Infinity,
+    year_max: Infinity
+};
+
+const parseNumberInput = (value, fallback) => {
+    const normalized = value.trim().replace(",", ".");
+    if (normalized === "") {
+        return fallback;
+    }
+
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : fallback;
+};
+
+const parsePriceValue = (value) => {
+    if (typeof value === "number") {
+        return value;
+    }
+
+    const normalized = String(value).replace(/[^\d.,-]/g, "").replace(",", ".");
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : NaN;
+};
+
 const dataFilter = (dataForm) => {
-    
-    let dictFilter = {};
+    const dictFilter = {};
 
-    // перебираем все элементы формы с фильтрами
     for (const item of dataForm.elements) {
-        
-        // получаем значение элемента
-        let valInput = item.value;
+        if (!item.id) {
+            continue;
+        }
 
-        // если поле типа text - приводим его значение к нижнему регистру
-        if (item.type === "text") {
-            valInput = valInput.toLowerCase();
-        } 
-				if (item.type === "number") {
-					if (valInput !== "") valInput = Number(valInput);
-					else if (item.id.includes("From")) valInput = -Infinity;
-					else if (item.id.includes("To")) valInput = Infinity;
-				}
+        if (Object.prototype.hasOwnProperty.call(numericDefaults, item.id)) {
+            dictFilter[item.id] = parseNumberInput(item.value, numericDefaults[item.id]);
+        } else {
+            dictFilter[item.id] = item.value.trim().toLowerCase();
+        }
+    }
 
-         // формируем очередной элемент ассоциативного массива
-        dictFilter[item.id] = valInput;
-    }       
     return dictFilter;
-}
+};
 
-// фильтрация таблицы
-const filterTable = (data, idTable, dataForm) =>{
-    
-    // получаем данные из полей формы
+const filterData = (data, dataForm) => {
     const datafilter = dataFilter(dataForm);
-    
-    // выбираем данные соответствующие фильтру и формируем таблицу из них
-    let tableFilter = data.filter(item => {
 
-        /* в этой переменной будут "накапливаться" результаты сравнения данных
-           с параметрами фильтра */
+    return data.filter((item) => {
         let result = true;
-        
-        // строка соответствует фильтру, если сравнение всех значения из input 
-        // со значением ячейки очередной строки - истина
-         Object.entries(item).map(([key, val]) => {
-            
-            // текстовые поля проверяем на вхождение
-            if (typeof val == 'string') {
-                result &&= val.toLowerCase().includes(datafilter[correspond[key]]) 
-            }
-            // проверить числовые поля на принадлежность интервалу
-            if (typeof val == 'number') {
-                const [fromKey, toKey] = correspond[key]; 
-                result &&= val >= datafilter[fromKey] && val <= datafilter[toKey];
-            }
-			
-         });
 
-         return result;
-    });     
+        Object.entries(item).forEach(([key, val]) => {
+            if (!result) {
+                return;
+            }
+
+            if (typeof correspond[key] === "string") {
+                const filterValue = datafilter[correspond[key]] || "";
+                result = String(val).toLowerCase().includes(filterValue);
+                return;
+            }
+
+            const [fromKey, toKey] = correspond[key];
+            const low = datafilter[fromKey];
+            const high = datafilter[toKey];
+            const value = key === "price" ? parsePriceValue(val) : Number(val);
+
+            result = value >= low && value <= high;
+        });
+
+        return result;
+    });
+};
+
+const filterTable = (data, idTable, dataForm) => {
+    const tableFilter = filterData(data, dataForm);
 
     clearTable(idTable);
+    createTable(tableFilter, idTable, Object.keys(data[0]));
 
-    // показать на странице таблицу с отфильтрованными строками
-    createTable(tableFilter, idTable, Object.keys(data[0]));  
-}
+    return tableFilter;
+};
 
-// очистка фильтров
 const clearFilter = (data, idTable, dataForm) => {
     dataForm.reset();
     clearTable(idTable);
     createTable(data, idTable);
-}
+};

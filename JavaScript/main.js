@@ -1,96 +1,75 @@
-document.addEventListener("DOMContentLoaded", function() {
-    createTable(buildings, "list");
-    const form = document.getElementById("filter");
-    const sortForm = document.getElementById("sort");
-    const fieldsFirst = document.getElementById("fieldsFirst");
-    const sortButton = sortForm.querySelector('input[value="Сортировать"]');
-    const resetSortButton = sortForm.querySelector('input[value="Сбросить сортировку"]');
-    const findButton = document.getElementById("findBtn");
+const tableHeaders = [
+    "Бренд", "Модель", "CPU модель", "Ядра", "Потоки", "Буст (ГГц)", "RAM (ГБ)",
+    "Хранилище (ГБ)", "GPU", "Экран (дюймы/разрешение/Гц)", "Вес (кг)", "Батарея (Вт⋅ч)",
+    "Цена", "Балл производительности", "Год"
+];
+
+const renderLaptopTable = (rows) => {
+    clearTable("list");
+    createTable(rows, "list", tableHeaders);
+};
+
+const ensureTableId = () => {
+    const table = document.querySelector(".table table");
+    if (!table) {
+        return null;
+    }
+
+    table.id = "list";
+    return table;
+};
+
+const getFilterForm = () => {
+    const brandInput = document.getElementById("brand");
+    return brandInput ? brandInput.closest("form") : null;
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    const table = ensureTableId();
+    const filterForm = getFilterForm();
+
+    if (!table || !filterForm) {
+        return;
+    }
+
+    const findButton = document.getElementById("find");
+    const sortButton = document.getElementById("sort");
     const clearButton = document.getElementById("clearFilter");
+    const firstSort = document.getElementById("task_1");
+    const secondSort = document.getElementById("task_2");
 
-    setSortSelects(buildings[0], sortForm);
+    renderLaptopTable(laptops);
+    updateSortControlsState();
 
-    findButton.addEventListener("click", function() {
-        resetSort("list", buildings, sortForm);
-        filterTable(buildings, "list", form);
-    });
+    if (findButton) {
+        findButton.addEventListener("click", () => {
+            resetSortControls();
+            const filtered = filterData(laptops, filterForm);
+            renderLaptopTable(filtered);
+        });
+    }
 
-    clearButton.addEventListener("click", function() {
-        resetSort("list", buildings, sortForm);
-        clearFilter(buildings, "list", form);
-    });
+    if (sortButton) {
+        sortButton.addEventListener("click", () => {
+            const filtered = filterData(laptops, filterForm);
+            const sorted = sortData(filtered);
+            renderLaptopTable(sorted);
+        });
+    }
 
-    fieldsFirst.addEventListener("change", function() {
-        changeNextSelect(fieldsFirst, "fieldsSecond");
-    });
+    if (clearButton) {
+        clearButton.addEventListener("click", () => {
+            filterForm.reset();
+            resetSortControls();
+            renderLaptopTable(laptops);
+        });
+    }
 
-    sortButton.addEventListener("click", function() {
-        sortTable("list", sortForm);
-    });
+    if (firstSort) {
+        firstSort.addEventListener("change", updateSortControlsState);
+    }
 
-    resetSortButton.addEventListener("click", function() {
-        resetSort("list", buildings, sortForm);
-    });
+    if (secondSort) {
+        secondSort.addEventListener("change", updateSortControlsState);
+    }
 });
-
-// формирование полей элемента списка с заданным текстом и значением
-
-const createOption = (str, val) => {
-    let item = document.createElement('option');
-    item.text = str;
-    item.value = val;
-    return item;
-}
-
-// формирование поля со списком 
-// параметры – массив со значениями элементов списка и элемент select
-
-const setSortSelect = (arr, sortSelect) => {
-    
-    // создаем OPTION Нет и добавляем ее в SELECT
-    sortSelect.append(createOption('Нет', 0));
-    // перебираем массив со значениями опций
-     arr.forEach((item, index) => {
-       // создаем OPTION из очередного ключа и добавляем в SELECT
-       // значение атрибута VALUE увеличиваем на 1, так как значение 0 имеет опция Нет
-        sortSelect.append(createOption(item, index + 1));
-    });
-}
-
-// формируем поля со списком для многоуровневой сортировки
-const setSortSelects = (data, dataForm) => { 
-
-    // выделяем ключи словаря в массив
-    const head = Object.keys(data);
-
-    // находим все SELECT в форме
-    const allSelect = dataForm.getElementsByTagName('select');
-    
-    for(const item of allSelect){
-        // формируем очередной SELECT
-        setSortSelect(head, item);
-		
-        // САМОСТОЯТЕЛЬНО все SELECT, кроме первого, сделать неизменяемым
-        if (item !== allSelect[0]) {
-            item.disabled = true;
-        }
-    }
-}
-// настраиваем поле для следующего уровня сортировки
-const changeNextSelect = (curSelect, nextSelectId) => {
-    
-    let nextSelect = document.getElementById(nextSelectId);
-    
-    nextSelect.disabled = false;
-    
-    // в следующем SELECT выводим те же option, что и в текущем
-    nextSelect.innerHTML = curSelect.innerHTML;
-    
-    // удаляем в следующем SELECT уже выбранную в текущем опцию
-    // если это не первая опция - отсутствие сортировки
-    if (curSelect.value != 0) {
-       nextSelect.remove(curSelect.value);
-    } else {
-        nextSelect.disabled = true;
-    }
-}

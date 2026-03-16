@@ -1,6 +1,8 @@
 const createTable = (data, idTable, headers = []) => {
     const table = document.getElementById(idTable);
-    const header = data.length > 0 ? Object.keys(data[0]) : headers;
+    const header = headers.length > 0
+        ? headers
+        : (data.length > 0 ? Object.keys(data[0]) : []);
    
     /* создание шапки таблицы */
     const headerRow = createHeaderRow(header);
